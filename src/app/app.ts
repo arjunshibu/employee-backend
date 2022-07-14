@@ -1,11 +1,12 @@
-import { EventEmitter } from "events";
-import bodyParser from "body-parser";
-import compression from "compression";
-import cookieParser from "cookie-parser";
-import express from "express";
-import { Controller } from "./util/rest/controller";
-import RequestWithUser from "./util/rest/request";
-import cors = require("cors");
+import { EventEmitter } from 'events';
+import bodyParser from 'body-parser';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import express from 'express';
+import { Controller } from './util/rest/controller';
+import RequestWithUser from './util/rest/request';
+import cors = require('cors');
+import errorMiddleware from './middleware/ErrorMiddleware';
 /**
  * Express application wrapper class to centralize initialization
  */
@@ -21,6 +22,7 @@ class App extends EventEmitter {
 
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
+    this.initializeErrorHandling();
   }
 
   /**
@@ -28,7 +30,7 @@ class App extends EventEmitter {
    */
   public listen() {
     this.app.listen(process.env.PORT, () => {
-      console.log(`App listening on ${process.env.PORT}`)
+      console.log(`App listening on ${process.env.PORT}`);
     });
   }
 
@@ -48,13 +50,22 @@ class App extends EventEmitter {
     this.app.use(compression());
     this.app.use(express.static('public'));
 
-
     // use for computing processing time on response
-    this.app.use((request: RequestWithUser, response: express.Response, next: express.NextFunction) => {
-      request.startTime = Date.now();
-      next();
-    });
-  } 
+    this.app.use(
+      (
+        request: RequestWithUser,
+        response: express.Response,
+        next: express.NextFunction
+      ) => {
+        request.startTime = Date.now();
+        next();
+      }
+    );
+  }
+
+  private initializeErrorHandling() {
+    this.app.use(errorMiddleware);
+  }
 
   /**
    * Iterates through controllers in services/index and adds their routes/handlers to app
@@ -62,10 +73,9 @@ class App extends EventEmitter {
    */
   private initializeControllers(controllers: Controller[]) {
     controllers.forEach((controller) => {
-      this.app.use("/", controller.router);
+      this.app.use('/', controller.router);
     });
   }
-
 }
 
 export default App;
